@@ -1,17 +1,15 @@
-from flask import Flask, request, jsonify, send_file
 from queue import Queue
 from threading import Lock, Thread
 import json
 import os
 from threads.base import image_generator
-from threads.hf.hfman import import_index_from_hf
-from io import BytesIO
+import socketio
+from socketio.exceptions import ConnectionRefusedError
+sio = socketio.Client()
 
-def serve_pil_image(pil_img):
-    img_io = BytesIO()
-    pil_img.save(img_io, 'PNG')
-    img_io.seek(0)
-    return send_file(img_io, mimetype='image/jpeg')
+NODE_KEY = 'Cj4UyVUJV8GmJ89vy5SKAS7d'
+
+ex_uuid = "26a3d9bc-584d-481b-b572-5feb8c30efc9"
 
 CONFIG_PATH = "cfg/basic.json"
 
@@ -19,51 +17,63 @@ if os.path.exists(CONFIG_PATH):
     with open(CONFIG_PATH) as f:
         config = json.load(f)
 
-app = Flask(__name__, static_folder='demo')
-app.config['SECRET_KEY'] = 'secret!'
-
 # Create the request queue and image queue
 request_queue = Queue()
 image_queue = Queue()
 queue_lock = Lock()
 
-@app.route("/q", methods=["GET"])
-def queues():
-    request_length = request_queue.qsize()
-    return str(request_length)
+@sio.event
+def connect():
+    print("Connected")
+
+@sio.event
+def disconnect():
+    print("Disconnected")
+
+@sio.on('CONNECTION_STATUS')
+def on_connection_status(data):
+    if data == 'SUCCESS' is False:
+        raise ConnectionRefusedError('FAILED TO AUTH')
+    else:
+        print("AUTH SUCCESS")
+
+@sio.on('status')
+def on_message(data):
+    print('I received a status!', data)
+
+@sio.on('*')
+def catch_all(event, data):
+    print("Catched some event:", event)
+    print("data:", data)
     
-@app.route("/base", methods=["POST"])
-def txt2img():
-    json = request.get_json(force=True)
-    print("front req", json)
+@sio.on('task')
+def on_task(data):
+    print(data)
+    queue_pointer = data['QUEUE_POINTER']
+    job_key = data['JOB_KEY']
+    parameters = data['PARAMETERS']
     with queue_lock:
         r = {
-            "prompt": str(json['prompt']),
-            "negative_prompt": str(json['negative_prompt']) if 'negative_prompt' in json else None,
-            "model": str(json['model']),
-            "vae": str(json['vae']),
-            "steps": int(json['steps']),
-            "width": int(json['width']),
-            "height": int(json['height']),
-            "cfg": float(json['cfg']),
-            "seed": int(json['seed']),
-            "scheduler": str(json['scheduler']),
-            # "img": str(json['img']) if 'img' in json else None,
-            # "strength": float(json['strength']) if 'strength' in json else None,
-            "mode": str(json['mode']), # <- "I expect a response that is X"
+            "prompt": str(parameters['prompt']),
+            "negative_prompt": str(parameters['negative_prompt']) if 'negative_prompt' in parameters else None,
+            "model": str(parameters['model']),
+            "vae": str(parameters['vae']),
+            "steps": int(parameters['steps']),
+            "width": int(parameters['width']),
+            "height": int(parameters['height']),
+            "cfg": float(parameters['cfg']),
+            "seed": int(parameters['seed']),
+            "scheduler": str(parameters['scheduler']),
         }
         request_queue.put(r)
-    response = image_queue.get()
-    if response['status'] == 'fail':
-        response = jsonify(response)
-        response.status_code = 400
-        return response
-
-    if json['mode'] == 'file':
-        file = response['content']
-        return serve_pil_image(file)
-    elif json['mode'] == 'json':
-        return jsonify(response)
+    response_queue = image_queue.get()
+    response = {
+        "JOB_KEY": job_key,
+        "QUEUE_POINTER": queue_pointer,
+        "DATA": response_queue
+    }
+    print("I guess i posted it")
+    sio.emit('post_task', response)
 
 # Image Generator Engine
 image_generator_thread = Thread(
@@ -75,3 +85,22 @@ image_generator_thread = Thread(
         )
     )
 image_generator_thread.start()
+
+sio.connect('http://localhost:5000', auth={'KEY': NODE_KEY})
+sio.emit('join', data={'room': 't2i', 'instance_id': ex_uuid})
+
+available_models = []
+for entry in config['models']:
+    available_models.append(entry['alias'])
+
+data_to_update = {
+    "INSTANCE_ID": ex_uuid,
+    "NEW_RECORDS": {
+        "MODELS": available_models,
+        "STATUS": "ready",
+        "SLOTS": 6,
+        "TASKS": 0
+    }
+}
+
+sio.emit('update_records', data=data_to_update)

@@ -35,26 +35,23 @@ def image_generator(
     max_batch_size = 4
     device = 'cuda'
 
-    model_structure = {
-    #TODO: 'clip': CLIP(device=device, verbose=verbose, max_batch_size=max_batch_size, hf_token=""),
+    unet_structure = {
     'unet': UNet(fp16=True, device=device, verbose=verbose, max_batch_size=max_batch_size, hf_token=""),
-    #'de_vae': VAE(device=device, verbose=verbose, max_batch_size=max_batch_size, hf_token=""),
     }
 
-    engine = {}
-
-    model_map = {}
-    model_count = 0
+    unet_engine = {}
+    unet_map = {}
+    unet_count = 0
     for entry in config['models']:
-        model_count += 1
-        model_map[entry["alias"]] = {}
-        model_map_entry = model_map[entry["alias"]]
-        model_map_entry['struct'] = copy.deepcopy(model_structure)
-        model_map_entry['engine'] = copy.deepcopy(engine)
-        model_map_entry['config'] = copy.deepcopy(entry)
-    print(f"Detected {model_count} models")
+        unet_count += 1
+        unet_map[entry["alias"]] = {}
+        unet_map_entry = unet_map[entry["alias"]]
+        unet_map_entry['struct'] = copy.deepcopy(unet_structure)
+        unet_map_entry['engine'] = copy.deepcopy(unet_engine)
+        unet_map_entry['config'] = copy.deepcopy(entry)
+    print(f"Detected {unet_count} unets")
 
-    vea_engine = {}
+    vae_engine = {}
     vae_map = {}
     vae_count = 0
     vae_structure = {
@@ -66,7 +63,7 @@ def image_generator(
         vae_map[entry["alias"]] = {}
         vae_map_entry = vae_map[entry["alias"]]
         vae_map_entry['struct'] = copy.deepcopy(vae_structure)
-        vae_map_entry['engine'] = copy.deepcopy(vea_engine)
+        vae_map_entry['engine'] = copy.deepcopy(vae_engine)
         vae_map_entry['config'] = copy.deepcopy(entry)
     print(f"Detected {vae_count} VAEs")
 
@@ -101,15 +98,6 @@ def image_generator(
 
     stream = cuda.Stream()
 
-    for model_entry in model_map:
-        print(model_entry)
-        index = json.load(open(os.path.join(model_map[model_entry]['config']['model_path'], 'model_index.json')))
-        for model_name, obj in model_map[model_entry]['struct'].items():
-            model_path = os.path.join(model_map[model_entry]['config']['model_path'], index[model_name]['path'])
-            indiv_engine = Engine(model_path)
-            indiv_engine.activate()
-            model_map[model_entry]['engine'][model_name] = indiv_engine
-
     for vae_entry in vae_map:
         print(vae_entry)
         vae_path = vae_map[vae_entry]['config']['model_path']
@@ -117,7 +105,14 @@ def image_generator(
         indiv_engine.activate()
         vae_map[vae_entry]['engine']['de_vae'] = indiv_engine
 
-    print(model_map)
+    for unet_entry in unet_map:
+        print(unet_entry)
+        unet_path = unet_map[unet_entry]['config']['model_path']
+        indiv_engine = Engine(unet_path)
+        indiv_engine.activate()
+        unet_map[unet_entry]['engine']['unet'] = indiv_engine
+
+    print(unet_map)
     print("#####")
     print(vae_map)
 
@@ -171,7 +166,6 @@ def image_generator(
             steps = data['steps']
             cfg = data['cfg']
             seed = data['seed']
-            mode = data['mode']
             model = data['model']
             vae = data['vae']
             # img = data['img'] if 'img' in data else None
@@ -188,10 +182,11 @@ def image_generator(
                 continue
 
             logger.debug("model section")
-            if model in model_map:
-                curr_model = model_map[model]
+            if model in unet_map:
+                curr_model = unet_map[model]
             else:
                 imgq('fail', f'model {model} not found')
+                print(unet_map)
                 continue
 
             if vae in vae_map:
@@ -238,54 +233,6 @@ def image_generator(
             with torch.inference_mode(), torch.autocast("cuda"), trt.Runtime(TRT_LOGGER) as runtime:
                 # latents need to be generated on the target device
                 unet_channels = 4 # unet.in_channels
-
-                # if lpw is False:
-                #     # From Here
-                #     logger.debug("tokenize")
-                #     # Tokenize input
-                #     text_input_ids = tokenizer(
-                #         prompt,
-                #         padding="max_length",
-                #         max_length=tokenizer.model_max_length,
-                #         return_tensors="pt",
-                #     ).input_ids.type(torch.int32).to(device)
-
-                #     logger.debug("clip encoder")
-                #     # CLIP text encoder
-                #     text_input_ids_inp = cuda.DeviceView(ptr=text_input_ids.data_ptr(), shape=text_input_ids.shape, dtype=np.int32)
-                #     text_embeddings = runEngine('clip', {"input_ids": text_input_ids_inp}, curr_engine_dict)['text_embeddings']
-
-                #     # Duplicate text embeddings for each generation per prompt
-                #     bs_embed, seq_len, _ = text_embeddings.shape
-                #     text_embeddings = text_embeddings.repeat(1, 1, 1)
-                #     text_embeddings = text_embeddings.view(bs_embed * 1, seq_len, -1)
-
-                #     max_length = text_input_ids.shape[-1]
-                #     uncond_input_ids = tokenizer(
-                #         negative_prompt,
-                #         padding="max_length",
-                #         max_length=max_length,
-                #         truncation=True,
-                #         return_tensors="pt",
-                #     ).input_ids.type(torch.int32).to(device)
-                #     uncond_input_ids_inp = cuda.DeviceView(ptr=uncond_input_ids.data_ptr(), shape=uncond_input_ids.shape, dtype=np.int32)
-                #     uncond_embeddings = runEngine('clip', {"input_ids": uncond_input_ids_inp}, curr_engine_dict)['text_embeddings']
-
-                #     # Duplicate unconditional embeddings for each generation per prompt
-                #     seq_len = uncond_embeddings.shape[1]
-                #     uncond_embeddings = uncond_embeddings.repeat(1, 1, 1)
-                #     uncond_embeddings = uncond_embeddings.view(batch_size * 1, seq_len, -1)
-
-                #     # Concatenate the unconditional and text embeddings into a single batch to avoid doing two forward passes for classifier free guidance
-                #     text_embeddings = torch.cat([uncond_embeddings, text_embeddings])
-                #     text_embeddings = text_embeddings.to(dtype=torch.float16) # <- result (?) of the lpw
-                #     # To here
-
-                #     logger.debug("old")
-                    
-                #     logger.debug(text_embeddings)
-                #     logger.debug(text_embeddings.shape)
-                # else:
 
                 text_embeddings = lpw_pipe(
                     prompt=prompt,
@@ -364,28 +311,25 @@ def image_generator(
                 images = ((images + 1) * 255 / 2).clamp(0, 255).detach().permute(0, 2, 3, 1).round().type(torch.uint8).cpu().numpy()
                 img = Image.fromarray(images[0])
                 serving_time = time.time()
-                if mode == 'file':
-                    imgq('done', img)
-                elif mode == 'json':
-                    buffered = BytesIO()
-                    img.save(buffered, format="PNG")
-                    # imgq("done", {"time": serving_time - preparation_time, "seed": seed, "img": base64.b64encode(buffered.getvalue()).decode('utf-8')})
-                    imgq("done", {
-                        "image": base64.b64encode(buffered.getvalue()).decode('utf-8'),
-                        "metadata": {
-                            "prompt": prompt,
-                            "negative_prompt": negative_prompt,
-                            "model": model,
-                            "vae": vae,
-                            "steps": steps,
-                            "width": image_width,
-                            "height": image_height,
-                            "cfg": cfg,
-                            "seed": seed,
-                            "scheduler": data['scheduler'],
-                            "compute_time": serving_time - preparation_time
-                        }
-                    })
+                buffered = BytesIO()
+                img.save(buffered, format="PNG")
+                # imgq("done", {"time": serving_time - preparation_time, "seed": seed, "img": base64.b64encode(buffered.getvalue()).decode('utf-8')})
+                imgq("done", {
+                    "image": base64.b64encode(buffered.getvalue()).decode('utf-8'),
+                    "metadata": {
+                        "prompt": prompt,
+                        "negative_prompt": negative_prompt,
+                        "model": model,
+                        "vae": vae,
+                        "steps": steps,
+                        "width": image_width,
+                        "height": image_height,
+                        "cfg": cfg,
+                        "seed": seed,
+                        "scheduler": data['scheduler'],
+                        "compute_time": serving_time - preparation_time
+                    }
+                })
                 benchmark_time = {
                     "PREP": preparation_time - start_time,
                     "CLIP": clip_time - preparation_time,

@@ -1,47 +1,22 @@
 {
     "models": [
         {
-            "alias": "ABYSSORANGEMIX2-HARD",
-            "model_path": "/workspace/static/trt/bundled/AbyssOrangeMix2_hard"
-        },
-        {
-            "alias": "ABYSSORANGEMIX2-NSFW",
-            "model_path": "/workspace/static/trt/bundled/AbyssOrangeMix2_nsfw"
-        },
-        {
-            "alias": "ABYSSORANGEMIX2-SFW",
-            "model_path": "/workspace/static/trt/bundled/AbyssOrangeMix2_sfw"
-        },
-        {
             "alias": "ANYTHING-V3",
-            "model_path": "/workspace/static/trt/bundled/anything-v3.0"
+            "model_path": "/workspace/static/bundle/anything-v3/engine/unet.plan"
         },
         {
-            "alias": "ANYTHING-V4",
-            "model_path": "/workspace/static/trt/bundled/anything-v4.0"
+            "alias": "PASTEL",
+            "model_path": "/workspace/static/bundle/pastel/engine/unet.plan"
         },
         {
             "alias": "STABLE-DIFFUSION-1-5",
-            "model_path": "/workspace/static/trt/bundled/stable-diffusion-v1-5"
+            "model_path": "/workspace/static/bundle/sd15/engine/unet.plan"
         }
     ],
     "vae": [
         {
-            "alias": "VAE-ORANGEMIX",
-            "model_path": "/workspace/static/trt/vae/orangemix/engine/de_vae.plan"
-        },
-        {
-            "alias": "VAE-STABLE-DIFFUSION-1-5",
-            "model_path": "/workspace/static/trt/vae/stable-diffusion-v1-5/engine/de_vae.plan"
-        },
-        {
             "alias": "VAE-WD",
-            "model_path": "/workspace/static/trt/vae/waifu-diffusion/engine/de_vae.plan"
+            "model_path": "/workspace/static/vae/wdvae/engine/de_vae.plan"
         }
-    ],
-    "schedulers": {
-        "separator": 5,
-        "max": 60,
-        "min": 20
-    }
+    ]
 }
