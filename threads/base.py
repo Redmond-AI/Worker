@@ -29,6 +29,7 @@ def image_generator(
     config,
     request_queue: Queue,
     image_queue: Queue,
+    command_queue: Queue,
     ):
 
     verbose = True
@@ -151,6 +152,8 @@ def image_generator(
 
     logger.info("Prepartions ready")
     logger.debug(schedulers)
+
+    command_queue.put({"status": "ready"})
 
     while True:
         request = request_queue.get()

@@ -5,11 +5,12 @@ import os
 from threads.base import image_generator
 import socketio
 from socketio.exceptions import ConnectionRefusedError
+import uuid
 sio = socketio.Client()
 
 NODE_KEY = 'Cj4UyVUJV8GmJ89vy5SKAS7d'
 
-ex_uuid = "26a3d9bc-584d-481b-b572-5feb8c30efc9"
+ex_uuid = str(uuid.uuid4())
 
 CONFIG_PATH = "cfg/basic.json"
 
@@ -20,11 +21,30 @@ if os.path.exists(CONFIG_PATH):
 # Create the request queue and image queue
 request_queue = Queue()
 image_queue = Queue()
+command_queue = Queue()
 queue_lock = Lock()
 
 @sio.event
 def connect():
-    print("Connected")
+    print("Connected...")
+    response = command_queue.get()
+    if response['status'] != 'ready':
+        raise Exception("Unexpected status on init")
+
+    available_models = []
+    for entry in config['models']:
+        available_models.append(entry['alias'])
+
+    data_to_update = {
+        "INSTANCE_ID": ex_uuid,
+        "NEW_RECORDS": {
+            "MODELS": available_models,
+            "STATUS": "ready",
+            "TASKS": 0
+        }
+    }
+
+    sio.emit('update_records', data=data_to_update)
 
 @sio.event
 def disconnect():
@@ -82,25 +102,11 @@ image_generator_thread = Thread(
         config, 
         request_queue,
         image_queue,
+        command_queue,
         )
     )
 image_generator_thread.start()
 
-sio.connect('http://localhost:5000', auth={'KEY': NODE_KEY})
+sio.connect(config['server'], auth={'KEY': NODE_KEY}, wait_timeout=30)
 sio.emit('join', data={'room': 't2i', 'instance_id': ex_uuid})
 
-available_models = []
-for entry in config['models']:
-    available_models.append(entry['alias'])
-
-data_to_update = {
-    "INSTANCE_ID": ex_uuid,
-    "NEW_RECORDS": {
-        "MODELS": available_models,
-        "STATUS": "ready",
-        "SLOTS": 6,
-        "TASKS": 0
-    }
-}
-
-sio.emit('update_records', data=data_to_update)
