@@ -2,22 +2,26 @@
     "models": [
         {
             "alias": "ANYTHING-V3",
-            "model_path": "/workspace/static/bundle/anything-v3/engine/unet.plan"
+            "model_path": "/shared/models/unet/anything_v3/engine/unet.plan"
         },
         {
             "alias": "PASTEL",
-            "model_path": "/workspace/static/bundle/pastel/engine/unet.plan"
+            "model_path": "/shared/models/unet/pastel/engine/unet.plan"
         },
         {
-            "alias": "STABLE-DIFFUSION-1-5",
-            "model_path": "/workspace/static/bundle/sd15/engine/unet.plan"
+            "alias": "STABLE_DIFFUSION_1_5",
+            "model_path": "/shared/models/unet/stable_diffusion_1_5/engine/unet.plan"
         }
     ],
     "vae": [
         {
-            "alias": "VAE-WD",
-            "model_path": "/workspace/static/vae/wdvae/engine/de_vae.plan"
+            "alias": "VAE-ANYTHING-V3",
+            "model_path": "/shared/models/vae/anything_v3/engine/de_vae.plan"
+        },
+        {
+            "alias": "VAE-STABLE_DIFFUSION_1_5",
+            "model_path": "/shared/models/vae/stable_diffusion_1_5/engine/de_vae.plan"
         }
     ],
-    "server": "127.0.0.1:5000"
+    "server": "http://127.0.0.1:7070"
 }

@@ -242,14 +242,14 @@ def image_generator(
                     negative_prompt=negative_prompt,
                     guidance_scale=cfg,
                     num_images_per_prompt=1,
-                    max_embeddings_multiples=1
+                    max_embeddings_multiples=5
                 )
                 text_embeddings = text_embeddings.to(dtype=torch.float16)
 
                 logger.debug("novo")
                 
                 logger.debug(text_embeddings)
-                logger.debug(text_embeddings.shape)
+                logger.info(text_embeddings.shape)
 
                 dtype = text_embeddings.dtype
 

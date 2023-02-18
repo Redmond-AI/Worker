@@ -295,7 +295,7 @@ def get_weighted_text_embeddings(
         (max_length - 1) // (pipe.tokenizer.model_max_length - 2) + 1,
     )
     max_embeddings_multiples = max(1, max_embeddings_multiples)
-    max_length = (pipe.tokenizer.model_max_length - 2) * max_embeddings_multiples + 2
+    max_length = 377
 
     # pad the length of tokens and weights
     bos = pipe.tokenizer.bos_token_id

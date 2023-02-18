@@ -1,20 +1,25 @@
-onnx==1.10.2; python_version<"3.10"
-onnx==1.12.0; python_version=="3.10"
-tensorflow-gpu==2.9.1; (platform_machine=="x86_64" and sys.platform=="linux" and python_version>="3.7")
-onnxruntime==1.8.1; python_version<"3.10"
-onnxruntime==1.12.1; python_version=="3.10"
--f https://download.pytorch.org/whl/cu113/torch_stable.html
-torch==1.10.2+cu113; python_version<"3.10" and platform_machine=="x86_64" and sys.platform=="linux"
-torch==1.10.2; python_version<"3.10" and platform_machine=="aarch64" and sys.platform=="linux"
-torch==1.11.0+cu113; python_version=="3.10" and platform_machine=="x86_64" and sys.platform=="linux"
-torch==1.11.0; python_version=="3.10" and platform_machine=="aarch64" and sys.platform=="linux"
-torchvision==0.11.3; python_version<"3.10"
-torchvision==0.12.0; python_version=="3.10"
+tensorrt
+colored
+cuda-python
+diffusers>0.7.2
+ftfy
+matplotlib
+nvtx
+onnx==1.12.0
+--extra-index-url https://pypi.ngc.nvidia.com
+tensorrt
+onnx-graphsurgeon
+onnxruntime
+polygraphy==0.43.1
+scipy
+--extra-index-url https://download.pytorch.org/whl/cu116
+torch==1.12.0+cu116
+transformers>4.24.0
+
 Pillow
-numpy
+numpy<1.20
 pycuda<2021.1
 pytest
---extra-index-url https://pypi.ngc.nvidia.com
-onnx-graphsurgeon
+
 gunicorn
-flask
+flask-socketio

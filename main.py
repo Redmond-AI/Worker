@@ -6,7 +6,7 @@ from threads.base import image_generator
 import socketio
 from socketio.exceptions import ConnectionRefusedError
 import uuid
-sio = socketio.Client()
+sio = socketio.Client(reconnection=True, reconnection_attempts=0, reconnection_delay=0, reconnection_delay_max=0, randomization_factor=0)
 
 NODE_KEY = 'Cj4UyVUJV8GmJ89vy5SKAS7d'
 
@@ -23,17 +23,29 @@ request_queue = Queue()
 image_queue = Queue()
 command_queue = Queue()
 queue_lock = Lock()
+global first_time
+first_time = True
 
 @sio.event
 def connect():
     print("Connected...")
-    response = command_queue.get()
-    if response['status'] != 'ready':
-        raise Exception("Unexpected status on init")
+    global first_time
+    if first_time is True:
+        print("First Time...")
+        response = command_queue.get()
+        print("Obtained!")
+        if response['status'] != 'ready':
+            raise Exception("Unexpected status on init")
+        first_time = False
+    else:
+        print("Not first time..")
 
     available_models = []
     for entry in config['models']:
         available_models.append(entry['alias'])
+    print("joining!")
+    sio.emit('join', data={'room': 't2i', 'instance_id': ex_uuid})
+    print("Joined!")
 
     data_to_update = {
         "INSTANCE_ID": ex_uuid,
@@ -43,12 +55,14 @@ def connect():
             "TASKS": 0
         }
     }
-
+    print("Updaiting records..")
     sio.emit('update_records', data=data_to_update)
+    print("Updated.")
 
 @sio.event
 def disconnect():
     print("Disconnected")
+    sio.connect(config['server'], auth={'KEY': NODE_KEY}, wait_timeout=10)
 
 @sio.on('CONNECTION_STATUS')
 def on_connection_status(data):
@@ -93,7 +107,10 @@ def on_task(data):
         "DATA": response_queue
     }
     print("I guess i posted it")
-    sio.emit('post_task', response)
+    if sio.connected is False:
+        pass
+    elif sio.connected is True:
+        sio.emit('post_task', response)
 
 # Image Generator Engine
 image_generator_thread = Thread(
@@ -107,6 +124,6 @@ image_generator_thread = Thread(
     )
 image_generator_thread.start()
 
-sio.connect(config['server'], auth={'KEY': NODE_KEY}, wait_timeout=30)
-sio.emit('join', data={'room': 't2i', 'instance_id': ex_uuid})
+print("Connecting...")
+sio.connect(config['server'], auth={'KEY': NODE_KEY}, wait_timeout=5)
 
