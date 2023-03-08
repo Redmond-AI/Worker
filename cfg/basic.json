@@ -2,26 +2,22 @@
     "models": [
         {
             "alias": "ANYTHING-V3",
-            "model_path": "/shared/models/unet/anything_v3/engine/unet.plan"
-        },
-        {
-            "alias": "PASTEL",
-            "model_path": "/shared/models/unet/pastel/engine/unet.plan"
+            "model_path": "/storage/models/unet/anything-v3/engine/unet.plan"
         },
         {
             "alias": "STABLE_DIFFUSION_1_5",
-            "model_path": "/shared/models/unet/stable_diffusion_1_5/engine/unet.plan"
+            "model_path": "/storage/models/unet/stable-diffusion-v1-5/engine/unet.plan"
         }
     ],
     "vae": [
         {
             "alias": "VAE-ANYTHING-V3",
-            "model_path": "/shared/models/vae/anything_v3/engine/de_vae.plan"
+            "model_path": "/storage/models/vae/anything-v3/engine/de_vae.plan"
         },
         {
             "alias": "VAE-STABLE_DIFFUSION_1_5",
-            "model_path": "/shared/models/vae/stable_diffusion_1_5/engine/de_vae.plan"
+            "model_path": "/storage/models/vae/stable-diffusion-v1-5/engine/de_vae.plan"
         }
     ],
-    "server": "http://127.0.0.1:7070"
+    "server": "https://makeai.run"
 }

@@ -638,7 +638,7 @@ class BaseModel():
     def __init__(
         self,
         hf_token,
-        text_maxlen=377,
+        text_maxlen=77,
         embedding_dim=768,
         fp16=False,
         device='cuda',

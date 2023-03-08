@@ -242,7 +242,7 @@ def image_generator(
                     negative_prompt=negative_prompt,
                     guidance_scale=cfg,
                     num_images_per_prompt=1,
-                    max_embeddings_multiples=5
+                    max_embeddings_multiples=1
                 )
                 text_embeddings = text_embeddings.to(dtype=torch.float16)
 

@@ -12,11 +12,10 @@ NODE_KEY = 'Cj4UyVUJV8GmJ89vy5SKAS7d'
 
 ex_uuid = str(uuid.uuid4())
 
-CONFIG_PATH = "cfg/basic.json"
+CONFIG_PATH = "/storage/node/cfg/basic.json"
 
-if os.path.exists(CONFIG_PATH):
-    with open(CONFIG_PATH) as f:
-        config = json.load(f)
+with open(CONFIG_PATH) as f:
+    config = json.load(f)
 
 # Create the request queue and image queue
 request_queue = Queue()
