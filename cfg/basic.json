@@ -5,7 +5,7 @@
             "model_path": "/storage/models/unet/anything-v3/engine/unet.plan"
         },
         {
-            "alias": "STABLE_DIFFUSION_1_5",
+            "alias": "v1-5-pruned-emaonly",
             "model_path": "/storage/models/unet/stable-diffusion-v1-5/engine/unet.plan"
         }
     ],
@@ -19,5 +19,5 @@
             "model_path": "/storage/models/vae/stable-diffusion-v1-5/engine/de_vae.plan"
         }
     ],
-    "server": "https://makeai.run"
+    "server": "http://204.15.42.247:8080/"
 }
