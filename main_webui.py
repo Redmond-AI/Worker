@@ -47,6 +47,8 @@ def connect():
     available_models = []
     for entry in config['models']:
         available_models.append(entry['alias'])
+    available_loras = [cfg['alias'] for cfg in config['loras']]
+    available_embeddings = [cfg['alias'] for cfg in config['embeddings']]
     print("joining!")
     sio.emit('join', data={'room': 't2i', 'instance_id': ex_uuid})
     print("Joined!")
@@ -55,6 +57,8 @@ def connect():
         "INSTANCE_ID": ex_uuid,
         "NEW_RECORDS": {
             "MODELS": available_models,
+            "LORAS": available_loras,
+            "EMBEDDINGS": available_embeddings,
             "STATUS": "ready",
             "TASKS": 0
         }
@@ -102,6 +106,8 @@ def on_task(data):
             "cfg": float(parameters['cfg']),
             "seed": int(parameters['seed']),
             "scheduler": str(parameters['scheduler']),
+            "loras": parameters['loras'] if 'loras' in parameters else [],
+            "embeddings": parameters['embeddings'] if 'embeddings' in parameters else []
         }
         request_queue.put(r)
     response_queue = image_queue.get()

@@ -3,14 +3,23 @@ import os
 import sys
 from os.path import join, abspath, dirname
 sys.path.append(join(dirname(abspath(__file__)), "stable-diffusion-webui"))
+from modules.devices import device, get_optimal_device_name
+# device = 1
 from modules.api.models import StableDiffusionTxt2ImgProcessingAPI
 from modules.processing import StableDiffusionProcessingTxt2Img, StableDiffusionProcessingImg2Img, process_images
 from modules import shared
+shared.opts.sd_checkpoint_cache = 10
+shared.opts.sd_vae_checkpoint_cache = 10
+# shared.device = "cuda:1"
+# device = 1
+# shared.device = 1
+# shared.cmd_opts.device_id = 1
 import modules.script_callbacks
 from modules.shared import sd_upscalers, opts, parser
 from modules.sd_models import checkpoint_alisases
 from modules.sd_vae import vae_dict
 from modules.call_queue import queue_lock
+# from modules.devices import device, get_optimal_device_name
 from webui import initialize
 import traceback
 import time
@@ -21,10 +30,13 @@ log_level = os.environ.get('LOG_LEVEL', 'INFO')
 logging.basicConfig(level=getattr(logging, log_level),
                     format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger()
-
+# shared.cmd_opts.device_id = 1
+# shared.device = 1
+# device = 1
+print(shared.weight_load_location, shared.cmd_opts.device_id, get_optimal_device_name())
 initialize()
 modules.script_callbacks.before_ui_callback()
-
+print(shared.weight_load_location)
 txt2img_processing = StableDiffusionTxt2ImgProcessingAPI()
 
 def paramatersToMetadata(data, serving_time, preparation_time):
@@ -77,7 +89,8 @@ def parametersToProcessing(data):
         "override_settings": {
             "sd_model_checkpoint": model,
             "sd_vae": vae
-        }
+        },
+        "override_settings_restore_afterwards": False
     })
 
 

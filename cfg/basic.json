@@ -1,9 +1,13 @@
 {
     "models": [
         {
-            "alias": "ANYTHING-V3",
+            "alias": "AbyssOrangeMix",
             "model_path": "/storage/models/unet/anything-v3/engine/unet.plan"
         },
+	{
+	    "alias": "AresMix",
+	    "model_path": "/storage/models/unet/anything-v3/engine/unet.plan"
+	},
         {
             "alias": "v1-5-pruned-emaonly",
             "model_path": "/storage/models/unet/stable-diffusion-v1-5/engine/unet.plan"
@@ -11,13 +15,50 @@
     ],
     "vae": [
         {
-            "alias": "VAE-ANYTHING-V3",
+            "alias": "kl-f8-anime2.ckpt",
             "model_path": "/storage/models/vae/anything-v3/engine/de_vae.plan"
         },
         {
-            "alias": "VAE-STABLE_DIFFUSION_1_5",
+            "alias": "vae-ft-mse-840000-ema-pruned.ckpt",
             "model_path": "/storage/models/vae/stable-diffusion-v1-5/engine/de_vae.plan"
-        }
+        },
+	{
+	    "alias": "nai.vae.pt",
+            "model_path": "/storage/models/vae/stable-diffusion-v1-5/engine/de_vae.plan"
+	}
+    ],
+    "loras": [
+        {"alias": "odinSphere"}
+    ],
+    "embeddings": [
+	    {
+	        "alias": "awaitingtongue",
+		"type": "positive"
+	    },
+	    {
+                "alias": "bukkakAI",
+                "type": "positive"
+            },
+	    {
+                "alias": "easynegative",
+                "type": "negative"
+            },
+	    {
+                "alias": "bad-hands-5",
+                "type": "negative"
+            },
+	    {
+                "alias": "bad-image-v2-39000",
+                "type": "negative"
+            },
+	    {
+                "alias": "bad_prompt_version2",
+                "type": "negative"
+            },
+	    {
+                "alias": "NG_DeepNegative_V1_75T",
+                "type": "negative"
+            }
     ],
     "server": "http://204.15.42.247:8080/"
 }
