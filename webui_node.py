@@ -70,6 +70,16 @@ def parametersToProcessing(data):
     seed = data['seed']
     model = data['model']
     vae = data['vae']
+    loras = data.get('loras', [])
+    embeddings = data.get('embeddings', [])
+
+    prompt += " ".join([f"<lora:{lora['name']}:{lora['strength']}>" for lora in loras])
+    for embd in embeddings:
+        if embd["type"] == "positive":
+            prompt += f" ,{embd['name']}:{embd['strength']}"
+        else:
+            negative_prompt += f" ,{embd['name']}:{embd['strength']}"
+
     print(checkpoint_alisases)
     if model not in checkpoint_alisases:
         raise Exception("model not supported")
@@ -98,7 +108,7 @@ def parametersToProcessing(data):
 def image_generator(config, request_queue, image_queue, command_queue):
     verbose = True
     max_batch_size = 4
-    device = 'cuda'
+    # device = 'cuda'
 
     def imgq(status: str, content):
         response = {
