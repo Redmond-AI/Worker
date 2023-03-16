@@ -30,6 +30,13 @@ queue_lock = Lock()
 global first_time
 first_time = True
 
+item_map = {
+    "bundles": sorted(os.listdir(os.path.join(config['storage'], 'bundles'))),
+    "embeds": sorted(os.listdir(os.path.join(config['storage'], 'embeds'))),
+    "loras": sorted(os.listdir(os.path.join(config['storage'], 'loras'))),
+    "vae": sorted(os.listdir(os.path.join(config['storage'], 'vae'))),
+}
+
 @sio.event
 def connect():
     print("Connected...")
@@ -44,11 +51,10 @@ def connect():
     else:
         print("Not first time..")
 
-    available_models = []
-    for entry in config['models']:
-        available_models.append(entry['alias'])
-    available_loras = [cfg['alias'] for cfg in config['loras']]
-    available_embeddings = [cfg['alias'] for cfg in config['embeddings']]
+    available_models = item_map['bundles']
+    available_loras = item_map['loras']
+    available_embeddings = item_map['embeds']
+    available_vae = item_map['vae']
     print("joining!")
     sio.emit('join', data={'room': 't2i', 'instance_id': ex_uuid})
     print("Joined!")
@@ -59,6 +65,7 @@ def connect():
             "MODELS": available_models,
             "LORAS": available_loras,
             "EMBEDDINGS": available_embeddings,
+            "VAE": available_vae,
             "STATUS": "ready",
             "TASKS": 0
         }
