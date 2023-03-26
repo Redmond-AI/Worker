@@ -97,25 +97,37 @@ def catch_all(event, data):
     
 @sio.on('task')
 def on_task(data):
-    print(data)
     queue_pointer = data['QUEUE_POINTER']
     job_key = data['JOB_KEY']
     parameters = data['PARAMETERS']
     with queue_lock:
-        r = {
-            "prompt": str(parameters['prompt']),
-            "negative_prompt": str(parameters['negative_prompt']) if 'negative_prompt' in parameters else None,
-            "model": str(parameters['model']),
-            "vae": str(parameters['vae']),
-            "steps": int(parameters['steps']),
-            "width": int(parameters['width']),
-            "height": int(parameters['height']),
-            "cfg": float(parameters['cfg']),
-            "seed": int(parameters['seed']),
-            "scheduler": str(parameters['scheduler']),
-            "loras": parameters['loras'] if 'loras' in parameters else [],
-            "embeddings": parameters['embeddings'] if 'embeddings' in parameters else []
-        }
+        r=None
+        generation_type = parameters['generation_type']
+        if generation_type == 'upscaler':
+            r = {
+                "init_img": str(parameters['init_img']),
+                "upscaler_model": str(parameters['upscaler_model']),
+                "generation_type": str(parameters['generation_type']),
+            }
+        else:
+            r = {
+                "denoising_strength": float(parameters['denoising_strength']),
+                "generation_type": str(parameters['generation_type']),
+                "init_img": str(parameters['init_img']),
+                "init_mask_inpaint": str(parameters['init_mask_inpaint']) if 'init_mask_inpaint' in parameters else None,
+                "prompt": str(parameters['prompt']),
+                "negative_prompt": str(parameters['negative_prompt']) if 'negative_prompt' in parameters else None,
+                "model": str(parameters['model']),
+                "vae": str(parameters['vae']),
+                "steps": int(parameters['steps']),
+                "width": int(parameters['width']),
+                "height": int(parameters['height']),
+                "cfg": float(parameters['cfg']),
+                "seed": int(parameters['seed']),
+                "scheduler": str(parameters['scheduler']),
+                "loras": parameters['loras'] if 'loras' in parameters else [],
+                "embeddings": parameters['embeddings'] if 'embeddings' in parameters else []
+            }
         request_queue.put(r)
     response_queue = image_queue.get()
     response = {

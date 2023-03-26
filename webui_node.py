@@ -5,7 +5,7 @@ from os.path import join, abspath, dirname
 sys.path.append(join(dirname(abspath(__file__)), "stable-diffusion-webui"))
 from modules.devices import device, get_optimal_device_name
 # device = 1
-from modules.api.models import StableDiffusionTxt2ImgProcessingAPI
+from modules.api.models import StableDiffusionTxt2ImgProcessingAPI, StableDiffusionImg2ImgProcessingAPI
 from modules.processing import StableDiffusionProcessingTxt2Img, StableDiffusionProcessingImg2Img, process_images
 from modules import shared
 shared.opts.sd_checkpoint_cache = 10
@@ -19,12 +19,20 @@ from modules.shared import sd_upscalers, opts, parser
 from modules.sd_models import checkpoint_alisases
 from modules.sd_vae import vae_dict
 from modules.call_queue import queue_lock
+from modules.upscaler import Upscaler
+from modules.realesrgan_model import UpscalerRealESRGAN, get_realesrgan_models
 # from modules.devices import device, get_optimal_device_name
 from webui import initialize
 import traceback
 import time
 from io import BytesIO
 import base64
+import io
+from PIL import Image,PngImagePlugin
+from modules import postprocessing
+import piexif
+import piexif.helper
+from realesrgan.archs.srvgg_arch import SRVGGNetCompact
 
 log_level = os.environ.get('LOG_LEVEL', 'INFO')
 logging.basicConfig(level=getattr(logging, log_level),
@@ -38,7 +46,20 @@ initialize()
 modules.script_callbacks.before_ui_callback()
 print(shared.weight_load_location)
 txt2img_processing = StableDiffusionTxt2ImgProcessingAPI()
+img2img_processing = StableDiffusionImg2ImgProcessingAPI()
 
+def base64_to_image(base64_string):
+    # Remove data URI scheme if it exists
+    if "data:" in base64_string:
+        base64_string = base64_string.split(",", 1)[1]
+        
+    # Decode base64 string to bytes
+    image_bytes = base64.b64decode(base64_string)
+    
+    # Load bytes into a PIL Image object
+    image = Image.open(io.BytesIO(image_bytes))
+    
+    return image
 def paramatersToMetadata(data, serving_time, preparation_time):
     prompt = data['prompt']
     negative_prompt = data['negative_prompt']
@@ -58,6 +79,12 @@ def paramatersToMetadata(data, serving_time, preparation_time):
                         "cfg": cfg,
                         "seed": seed,
                         "scheduler": scheduler, "compute_time": serving_time - preparation_time}
+
+def paramatersToMetadataUpscaler(data, serving_time, preparation_time):
+    init_img = data['init_img']
+    upscaler_model = data['upscaler_model']
+
+    return {"init_img": init_img, "upscaler_model": upscaler_model, "compute_time": serving_time - preparation_time}
 
 def parametersToProcessing(data):
     prompt = data['prompt']
@@ -103,6 +130,61 @@ def parametersToProcessing(data):
         "override_settings_restore_afterwards": False
     })
 
+def parametersToProcessingImg2Img(data):
+    inpaint_full_res= data.get('inpaint_full_res', False) # bool
+    inpaint_full_res_padding= data.get('inpaint_full_res_padding', False) # bool
+    prompt = data['prompt']
+    negative_prompt = data['negative_prompt']
+    image_height = data['height']
+    image_width = data['width']
+    scheduler = data['scheduler']
+    steps = data['steps']
+    cfg = data['cfg']
+    seed = data['seed']
+    model = data['model']
+    vae = data['vae']
+    loras = data.get('loras', [])
+    init_img = data.get('init_img', None)
+    init_mask_inpaint = data.get('init_mask_inpaint', None)
+    denoising_strength = data.get('denoising_strength')
+    embeddings = data.get('embeddings', [])
+    prompt += " ".join([f"<lora:{lora['name']}:{lora['strength']}>" for lora in loras])
+    for embd in embeddings:
+        if embd["type"] == "positive":
+            prompt += f" ,{embd['name']}:{embd['strength']}"
+        else:
+            negative_prompt += f" ,{embd['name']}:{embd['strength']}"
+
+    print(checkpoint_alisases)
+    if model not in checkpoint_alisases:
+        raise Exception("model not supported")
+    print(vae_dict)
+    if vae not in vae_dict:
+        raise Exception("vae not supported")
+    update = {
+        "prompt": prompt,
+        "denoising_strength": denoising_strength,
+        "negative_prompt": negative_prompt,
+        "height": image_height,
+        "width": image_width,
+        "sampler_name": scheduler,
+        "steps": steps,
+        "cfg_scale": cfg,
+        "seed": seed,
+        "init_images": [base64_to_image(init_img)],
+        "inpaint_full_res":inpaint_full_res,
+        "inpaint_full_res_padding": inpaint_full_res_padding,
+        "override_settings": {
+            "sd_model_checkpoint": model,
+            "sd_vae": vae
+        },
+        "override_settings_restore_afterwards": False
+    }
+    print('init_mask_inpaint', type(init_mask_inpaint))
+    if init_mask_inpaint != None:
+        update['mask'] = base64_to_image(init_mask_inpaint)
+        
+    return img2img_processing.copy(update=update)
 
 
 def image_generator(config, request_queue, image_queue, command_queue):
@@ -124,28 +206,89 @@ def image_generator(config, request_queue, image_queue, command_queue):
         try:
             start_time = time.time()
             logger.info("got request!", data)
-            processing_request = parametersToProcessing(data)
-            args = vars(processing_request)
-            args.pop('script_name', None)
+            generation_type = data['generation_type'] # img2img or txt2img
+            result = None
+            
+            if generation_type == 'upscaler':
+               result= Up(data)
+            else:
+               result = ImageCreation(data)
 
-            send_images = args.pop('send_images', True)
-            args.pop('save_images', None)
-            preparation_time = time.time()
-            with queue_lock:
-                p = StableDiffusionProcessingTxt2Img(sd_model=shared.sd_model, **args)
-                p.outpath_grids = opts.outdir_txt2img_grids
-                p.outpath_samples = opts.outdir_txt2img_samples
-
-                shared.state.begin()
-                processed = process_images(p)
-                shared.state.end()
-            # b64images = list(map(encode_pil_to_base64, processed.images)) if send_images else []
-            serving_time = time.time()
-            buffered = BytesIO()
-            processed.images[0].save(buffered, format="PNG")
-            imgq("done", {"image": base64.b64encode(buffered.getvalue()).decode('utf-8'), "metadata": paramatersToMetadata(data, serving_time, preparation_time)})
+            imgq("done", result)
         except Exception as e:
             traceback.print_exc()
             imgq('fail', f'general exception, got {str(e)}')
             continue
+        
+def ImageCreation(data):
+        generation_type = data['generation_type'] # img2img or txt2img
+        processing_request= None
+        if generation_type == 'txt2img':
+            processing_request = parametersToProcessing(data)
+        elif generation_type == 'img2img':
+            processing_request = parametersToProcessingImg2Img(data)
+        args = vars(processing_request)
+        args.pop('script_name', None)
 
+        send_images = args.pop('send_images', True)
+        args.pop('save_images', None)
+        preparation_time = time.time()
+        with queue_lock:
+            p = None
+            if generation_type == 'txt2img':
+                p = StableDiffusionProcessingTxt2Img(sd_model=shared.sd_model, **args)
+            elif generation_type == 'img2img':
+                p = StableDiffusionProcessingImg2Img(sd_model=shared.sd_model, **args)
+                
+            p.outpath_grids = opts.outdir_txt2img_grids
+            p.outpath_samples = opts.outdir_txt2img_samples
+            shared.state.begin()
+            processed = process_images(p)
+            shared.state.end()
+        # b64images = list(map(encode_pil_to_base64, processed.images)) if send_images else []
+        serving_time = time.time()
+        buffered = BytesIO()
+        processed.images[0].save(buffered, format="PNG")
+        metadata = paramatersToMetadata(data, serving_time, preparation_time)
+        return {'image': base64.b64encode(buffered.getvalue()).decode('utf-8'), 'metadata':metadata}
+
+
+def setUpscalers(req: dict):
+    reqDict = vars(req)
+    reqDict['extras_upscaler_1'] = reqDict.pop('upscaler_1', None)
+    reqDict['extras_upscaler_2'] = reqDict.pop('upscaler_2', None)
+    return reqDict
+
+def encode_pil_to_base64(image):
+    
+    stream = io.BytesIO()
+    # Save the image to the stream in JPEG format
+    image.save(stream, format='PNG')
+
+    # Encode the image data in base64
+    base64_data = base64.b64encode(stream.getvalue()).decode('utf-8')
+    # Print the data URI
+    return base64_data
+
+
+def Up (req):
+    model_name = req['upscaler_model']
+    print("model NAME", model_name)
+    # model_name = "R-ESRGAN General 4xV3"
+    image = base64_to_image(req['init_img'])
+    # upscaler = Upscaler(name="R-ESRGAN General 4xV3",
+    # path="https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-x4v3.pth",
+    # scale=4,
+    # model=lambda: SRVGGNetCompact(num_in_ch=3, num_out_ch=3, num_feat=64, num_conv=32, upscale=4, act_type='prelu'))
+    #['R-ESRGAN General 4xV3', 'R-ESRGAN General WDN 4xV3', 'R-ESRGAN AnimeVideo', 'R-ESRGAN 4x+', 'R-ESRGAN 4x+ Anime6B', 'R-ESRGAN 2x+']
+    models = get_realesrgan_models(None)
+    selected_model_path = next((x.data_path for x in models if x.name == model_name), None)
+    print(selected_model_path)
+    preparation_time = time.time()
+    # path = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth"
+    ESRGAN = UpscalerRealESRGAN(selected_model_path)
+    img = ESRGAN.do_upscale(image, selected_model_path)
+    serving_time = time.time()
+    metadata = paramatersToMetadataUpscaler(req, serving_time, preparation_time)
+    output =  encode_pil_to_base64(img)
+    return {'image': output, 'metadata': metadata}
