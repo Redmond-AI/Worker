@@ -1,4 +1,4 @@
 {
     "storage": "/home/redmond/node/storage",
-    "server": "http://204.15.42.174:4020/"
+    "server": "https://api2.makeai.run/"
 }

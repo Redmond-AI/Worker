@@ -109,12 +109,28 @@ def on_task(data):
                 "upscaler_model": str(parameters['upscaler_model']),
                 "generation_type": str(parameters['generation_type']),
             }
-        else:
+        elif generation_type =="img2img":
             r = {
                 "denoising_strength": float(parameters['denoising_strength']),
                 "generation_type": str(parameters['generation_type']),
                 "init_img": str(parameters['init_img']),
                 "init_mask_inpaint": str(parameters['init_mask_inpaint']) if 'init_mask_inpaint' in parameters else None,
+                "prompt": str(parameters['prompt']),
+                "negative_prompt": str(parameters['negative_prompt']) if 'negative_prompt' in parameters else None,
+                "model": str(parameters['model']),
+                "vae": str(parameters['vae']),
+                "steps": int(parameters['steps']),
+                "width": int(parameters['width']),
+                "height": int(parameters['height']),
+                "cfg": float(parameters['cfg']),
+                "seed": int(parameters['seed']),
+                "scheduler": str(parameters['scheduler']),
+                "loras": parameters['loras'] if 'loras' in parameters else [],
+                "embeddings": parameters['embeddings'] if 'embeddings' in parameters else []
+            }
+        elif generation_type =="txt2img":
+            r = {
+                "generation_type": str(parameters['generation_type']),
                 "prompt": str(parameters['prompt']),
                 "negative_prompt": str(parameters['negative_prompt']) if 'negative_prompt' in parameters else None,
                 "model": str(parameters['model']),
