@@ -293,7 +293,7 @@ def Up (req):
       # BytesIO is a file-like buffer stored in memory
     imgByteArr = io.BytesIO()
     # image.save expects a file-like as a argument
-    image.save(imgByteArr, format=image.format)
+    img.save(imgByteArr, format=image.format)
     # Turn the BytesIO object back into a bytes object
     imgByteArr = imgByteArr.getvalue()
     return {'image': imgByteArr, 'metadata': metadata}
