@@ -260,15 +260,15 @@ def setUpscalers(req: dict):
     return reqDict
 
 def encode_pil_to_base64(image):
-    
-    stream = io.BytesIO()
-    # Save the image to the stream in JPEG format
-    image.save(stream, format='PNG')
+    print(image.tobytes())
+    # stream = io.BytesIO()
+    # # Save the image to the stream in JPEG format
+    # image.save(stream, format='PNG')
 
-    # Encode the image data in base64
-    base64_data = base64.b64encode(stream.getvalue()).decode('utf-8')
-    # Print the data URI
-    return base64_data
+    # # Encode the image data in base64
+    # base64_data = base64.b64encode(stream.getvalue()).decode('utf-8')
+    # # Print the data URI
+    # return base64_data
 
 
 def Up (req):
@@ -290,5 +290,10 @@ def Up (req):
     img = ESRGAN.do_upscale(image, selected_model_path)
     serving_time = time.time()
     metadata = paramatersToMetadataUpscaler(req, serving_time, preparation_time)
-    output =  encode_pil_to_base64(img)
-    return {'image': output, 'metadata': metadata}
+      # BytesIO is a file-like buffer stored in memory
+    imgByteArr = io.BytesIO()
+    # image.save expects a file-like as a argument
+    image.save(imgByteArr, format=image.format)
+    # Turn the BytesIO object back into a bytes object
+    imgByteArr = imgByteArr.getvalue()
+    return {'image': imgByteArr, 'metadata': metadata}
