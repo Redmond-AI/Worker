@@ -111,6 +111,7 @@ def on_task(data):
             }
         elif generation_type =="img2img":
             r = {
+                "inpainting_mask_invert": int(parameters['inpainting_mask_invert']) if 'inpainting_mask_invert' in parameters else None, 
                 "denoising_strength": float(parameters['denoising_strength']),
                 "generation_type": str(parameters['generation_type']),
                 "init_img": str(parameters['init_img']),

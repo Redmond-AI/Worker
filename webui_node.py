@@ -131,6 +131,7 @@ def parametersToProcessing(data):
     })
 
 def parametersToProcessingImg2Img(data):
+    inpainting_mask_invert = data.get('inpainting_mask_invert', None)
     inpaint_full_res= data.get('inpaint_full_res', False) # bool
     inpaint_full_res_padding= data.get('inpaint_full_res_padding', False) # bool
     prompt = data['prompt']
@@ -180,10 +181,10 @@ def parametersToProcessingImg2Img(data):
         },
         "override_settings_restore_afterwards": False
     }
-    print('init_mask_inpaint', type(init_mask_inpaint))
     if init_mask_inpaint != None:
         update['mask'] = base64_to_image(init_mask_inpaint)
-        
+    if inpainting_mask_invert != None:
+        update['inpainting_mask_invert'] = inpainting_mask_invert
     return img2img_processing.copy(update=update)
 
 
