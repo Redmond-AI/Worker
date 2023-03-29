@@ -21,6 +21,7 @@ from modules.sd_vae import vae_dict
 from modules.call_queue import queue_lock
 from modules.upscaler import Upscaler
 from modules.realesrgan_model import UpscalerRealESRGAN, get_realesrgan_models
+from modules.esrgan_model import UpscalerESRGAN, get_esrgan_models
 # from modules.devices import device, get_optimal_device_name
 from webui import initialize
 import traceback
@@ -282,13 +283,30 @@ def Up (req):
     # scale=4,
     # model=lambda: SRVGGNetCompact(num_in_ch=3, num_out_ch=3, num_feat=64, num_conv=32, upscale=4, act_type='prelu'))
     #['R-ESRGAN General 4xV3', 'R-ESRGAN General WDN 4xV3', 'R-ESRGAN AnimeVideo', 'R-ESRGAN 4x+', 'R-ESRGAN 4x+ Anime6B', 'R-ESRGAN 2x+']
+    model_path = None
+    UpscalerClass = None
+    img = None
     models = get_realesrgan_models(None)
-    selected_model_path = next((x.data_path for x in models if x.name == model_name), None)
-    print(selected_model_path)
+    realesrgan_selected_model_path = next((x.data_path for x in models if x.name == model_name), None)
+    # print(realesrgan_selected_model_path)
+    
+    if realesrgan_selected_model_path != None:
+        model_path = realesrgan_selected_model_path
+        UpscalerClass = UpscalerRealESRGAN(model_path)
+    else:
+        model_path = get_esrgan_models(model_name)
+        UpscalerClass = UpscalerESRGAN(model_path)
+    
+    img = UpscalerClass.do_upscale(image, model_path)
+    
     preparation_time = time.time()
     # path = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth"
-    ESRGAN = UpscalerRealESRGAN(selected_model_path)
-    img = ESRGAN.do_upscale(image, selected_model_path)
+    # path = "https://github.com/HyeongJu916/Boaz-SR-ESRGAN-PyTorch/blob/master/ESRGAN_4x.pth"
+    # path = "https://models2.us-east-1.linodeobjects.com/upscale/4x-UltraSharp.pth"
+    # ESRGAN = UpscalerESRGAN(path)
+    # img = ESRGAN.do_upscale(image, path)
+    # ESRGAN = UpscalerRealESRGAN(selected_model_path)
+    # img = ESRGAN.do_upscale(image, selected_model_path)
     serving_time = time.time()
     metadata = paramatersToMetadataUpscaler(req, serving_time, preparation_time)
       # BytesIO is a file-like buffer stored in memory
