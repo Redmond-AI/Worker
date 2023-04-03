@@ -34,7 +34,12 @@ from modules import postprocessing
 import piexif
 import piexif.helper
 from realesrgan.archs.srvgg_arch import SRVGGNetCompact
-
+from modules import codeformer_model
+import numpy as np
+import torch
+import torchvision
+print(torch.__version__)
+print(torchvision.__version__)
 log_level = os.environ.get('LOG_LEVEL', 'INFO')
 logging.basicConfig(level=getattr(logging, log_level),
                     format='%(asctime)s %(levelname)s %(message)s')
@@ -250,7 +255,20 @@ def ImageCreation(data):
         # b64images = list(map(encode_pil_to_base64, processed.images)) if send_images else []
         serving_time = time.time()
         buffered = BytesIO()
-        processed.images[0].save(buffered, format="PNG")
+        img = processed.images[0]
+        
+        if generation_type == 'img2img':
+            codeformer_weight = data['codeformer_weight']
+            codeformer_visibility = data['codeformer_visibility']
+            if codeformer_visibility != 0:
+                restored_img = codeformer_model.codeformer.restore(np.array(img, dtype=np.uint8), w=codeformer_weight)
+                restored_img = Image.fromarray(restored_img)
+                if codeformer_visibility < 1.0:
+                    img = Image.blend(img, restored_img, codeformer_visibility)
+                else:
+                    img = restored_img
+        
+        img.save(buffered, format="PNG")
         metadata = paramatersToMetadata(data, serving_time, preparation_time)
         return {'image': base64.b64encode(buffered.getvalue()).decode('utf-8'), 'metadata':metadata}
 
@@ -278,6 +296,16 @@ def Up (req):
     print("model NAME", model_name)
     # model_name = "R-ESRGAN General 4xV3"
     image = base64_to_image(req['init_img'])
+    print(image.mode)
+    # Split the image into channels
+    if image.mode == "RGBA":
+        r, g, b, a = image.split()
+        image = Image.merge('RGB', (r, g, b))
+        print("The image is RGBA")
+        print(image.mode)
+    elif image.mode == "RGB":
+        print("The image is RGB")
+    # Create a new image without the alpha channel
     # upscaler = Upscaler(name="R-ESRGAN General 4xV3",
     # path="https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-x4v3.pth",
     # scale=4,
@@ -293,13 +321,28 @@ def Up (req):
     if realesrgan_selected_model_path != None:
         model_path = realesrgan_selected_model_path
         UpscalerClass = UpscalerRealESRGAN(model_path)
+        img = UpscalerClass.do_upscale(image, model_path)
     else:
         model_path = get_esrgan_models(model_name)
+        print(model_path)
         UpscalerClass = UpscalerESRGAN(model_path)
+        img = UpscalerClass.do_upscale(image, model_path, model_name)
     
-    img = UpscalerClass.do_upscale(image, model_path)
-    
+    try:
+        codeformer_weight = req['codeformer_weight']
+        codeformer_visibility = req['codeformer_visibility']
+        if codeformer_visibility != 0:
+            restored_img = codeformer_model.codeformer.restore(np.array(img, dtype=np.uint8), w=codeformer_weight)
+            restored_img = Image.fromarray(restored_img)
+            if codeformer_visibility < 1.0:
+                img = Image.blend(img, restored_img, codeformer_visibility)
+            else:
+                img = restored_img
+    except Exception as e:
+        print("no codeformer", e)
+            
     preparation_time = time.time()
+
     # path = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth"
     # path = "https://github.com/HyeongJu916/Boaz-SR-ESRGAN-PyTorch/blob/master/ESRGAN_4x.pth"
     # path = "https://models2.us-east-1.linodeobjects.com/upscale/4x-UltraSharp.pth"
@@ -312,7 +355,6 @@ def Up (req):
       # BytesIO is a file-like buffer stored in memory
     imgByteArr = io.BytesIO()
     # image.save expects a file-like as a argument
-    img.save(imgByteArr, format=image.format)
+    img.save(imgByteArr, format="png")
     # Turn the BytesIO object back into a bytes object
-    imgByteArr = imgByteArr.getvalue()
-    return {'image': imgByteArr, 'metadata': metadata}
+    return {'image': imgByteArr.getvalue(), 'metadata': metadata}

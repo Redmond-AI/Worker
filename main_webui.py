@@ -108,9 +108,13 @@ def on_task(data):
                 "init_img": str(parameters['init_img']),
                 "upscaler_model": str(parameters['upscaler_model']),
                 "generation_type": str(parameters['generation_type']),
+                "codeformer_weight": float(parameters['codeformer_weight']) if 'codeformer_weight' in parameters else 0, 
+                "codeformer_visibility": float(parameters['codeformer_visibility']) if 'codeformer_visibility' in parameters else 0,
             }
         elif generation_type =="img2img":
             r = {
+                "codeformer_weight": float(parameters['codeformer_weight']) if 'codeformer_weight' in parameters else 0, 
+                "codeformer_visibility": float(parameters['codeformer_visibility']) if 'codeformer_visibility' in parameters else 0, 
                 "inpainting_mask_invert": int(parameters['inpainting_mask_invert']) if 'inpainting_mask_invert' in parameters else None, 
                 "denoising_strength": float(parameters['denoising_strength']),
                 "generation_type": str(parameters['generation_type']),
