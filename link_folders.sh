@@ -1,5 +1,5 @@
-export STORAGE_FOLDER=/home/redmond/node/storage/
-export WEBUI_FOLDER=/home/redmond/node/stable-diffusion-webui/
+export STORAGE_FOLDER=/home/redmond/storage/
+export WEBUI_FOLDER=/home/redmond/Worker/stable-diffusion-webui/
 
 rm -dr $WEBUI_FOLDER/models/Stable-diffusion
 rm -dr $WEBUI_FOLDER/models/Lora
