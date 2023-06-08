@@ -1,0 +1,9 @@
+# stable-diffusion-webui/models
+cfg/*
+.git
+.git/*
+cache/
+__pycache__/*
+outputs/
+ControlNet/__pycache__/*
+ControlNet/ControlNet/annotator/ckpts/*

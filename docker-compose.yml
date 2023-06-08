@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  worker:
+    image: worker
+    environment:
+      - DEVICE_ID=1
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+    volumes:
+      - /home/redmond/ckpts/:/node/ControlNet/ControlNet/annotator/ckpts/
+      - /home/redmond/storage:/home/redmond/storage
+      - /home/redmond/basic.json:/node/cfg/basic.json

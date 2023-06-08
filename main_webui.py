@@ -131,7 +131,8 @@ def on_task(data):
                 "seed": int(parameters['seed']),
                 "scheduler": str(parameters['scheduler']),
                 "loras": parameters['loras'] if 'loras' in parameters else [],
-                "embeddings": parameters['embeddings'] if 'embeddings' in parameters else []
+                "embeddings": parameters['embeddings'] if 'embeddings' in parameters else [],
+                "controlNet": parameters['controlNet'] if 'controlNet' in parameters else None,
             }
         elif generation_type =="txt2img":
             r = {
@@ -147,7 +148,8 @@ def on_task(data):
                 "seed": int(parameters['seed']),
                 "scheduler": str(parameters['scheduler']),
                 "loras": parameters['loras'] if 'loras' in parameters else [],
-                "embeddings": parameters['embeddings'] if 'embeddings' in parameters else []
+                "embeddings": parameters['embeddings'] if 'embeddings' in parameters else [],
+                "controlNet": parameters['controlNet'] if 'controlNet' in parameters else None,
             }
         request_queue.put(r)
     response_queue = image_queue.get()

@@ -3,6 +3,7 @@ import os
 import sys
 from os.path import join, abspath, dirname
 sys.path.append(join(dirname(abspath(__file__)), "stable-diffusion-webui"))
+sys.path.append(join(dirname(abspath(__file__)), "ControlNet"))
 from modules.devices import device, get_optimal_device_name
 # device = 1
 from modules.api.models import StableDiffusionTxt2ImgProcessingAPI, StableDiffusionImg2ImgProcessingAPI
@@ -38,6 +39,9 @@ from modules import codeformer_model
 import numpy as np
 import torch
 import torchvision
+from ControlNet.app import initModel
+
+model = initModel(shared.cmd_opts.device_id)
 print(torch.__version__)
 print(torchvision.__version__)
 log_level = os.environ.get('LOG_LEVEL', 'INFO')
@@ -268,6 +272,24 @@ def ImageCreation(data):
                 else:
                     img = restored_img
         
+        if data['controlNet'] is not None:
+            CN_settings = data['controlNet']
+            CN_scheduler = model.selectScheduler(CN_settings['scheduler'])
+            CN_args = {
+                "input_image": np.asarray(img),
+                "prompt": args['prompt'],
+                "additional_prompt": CN_settings['additional_prompt'],
+                "negative_prompt": CN_settings['negative_prompt'],
+                "num_images": 1,
+                "image_resolution": int(args['width']),
+                "guidance_scale": float(CN_settings['guidance_scale']),
+                "num_steps": int(CN_settings['num_steps']),
+                "seed": -1
+            }
+            print(CN_args)
+            CN_imgs = model.process_scribble(**CN_args, SchedulerClass=CN_scheduler)
+            img = CN_imgs[0]
+            
         img.save(buffered, format="PNG")
         metadata = paramatersToMetadata(data, serving_time, preparation_time)
         return {'image': base64.b64encode(buffered.getvalue()).decode('utf-8'), 'metadata':metadata}
